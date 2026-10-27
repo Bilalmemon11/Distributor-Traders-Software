@@ -1,0 +1,13 @@
+backend/vendor/
+backend/.env
+backend/storage/
+backend/bootstrap/cache/
+backend/database/*.sqlite
+backend/database/*.sqlite-journal
+frontend/node_modules/
+frontend/dist/
+.vscode/
+.idea/
+*.pdf
+*.rar
+composer.phar
