@@ -26,30 +26,91 @@ const avatarColors = [
 ];
 
 export default function Customers() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer,receivePayment,} = useApp();
+  const {
+    customers,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    receivePayment,
+    areas,
+    addArea,
+  } = useApp();
+
   const [showAdd, setShowAdd] = useState(false);
-
   const [payModal, setPayModal] = useState(null);
-
   const [showHistory, setShowHistory] = useState(false);
-
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [selectedAreaFilter, setSelectedAreaFilter] = useState("all");
+  const [showAddAreaModal, setShowAddAreaModal] = useState(false);
+  const [newAreaName, setNewAreaName] = useState("");
 
   const [payAmount, setPayAmount] = useState("");
-
   const [payDate, setPayDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-
   const [payNotes, setPayNotes] = useState("");
 
   const [form, setForm] = useState({
     name: "",
     phone: "",
     address: "",
+    area_id: "",
+    credit_limit: 0,
     type: "retail",
+  });
+
+  const [waModal, setWaModal] = useState(null);
+  const [waMsg, setWaMsg] = useState("");
+
+  const formatWhatsAppNumber = (phone) => {
+    if (!phone) return "";
+    let clean = phone.replace(/[^0-9]/g, "");
+    if (clean.startsWith("0092")) {
+      clean = "92" + clean.slice(4);
+    } else if (clean.startsWith("0")) {
+      clean = "92" + clean.slice(1);
+    } else if (clean.length === 10 && clean.startsWith("3")) {
+      clean = "92" + clean;
+    }
+    return clean;
+  };
+
+  const handleOpenWhatsApp = (customer) => {
+    const phone = formatWhatsAppNumber(customer.phone);
+    const storeName = "QADRI DISTRIBUTOR & TRADERS";
+    const balanceFmt = fmt(customer.balance);
+    const msg = `Assalam-o-Alaikum ${customer.name},\n\nYeh ek muazziz reminder hai ke ${storeName} ki taraf aapka baqi udhar (Balance) *${balanceFmt}* wajib-ul-ada hai.\n\nBarah-e-karam jald az jald payment clear farma dein.\n\nShukriya!\n*${storeName}*\nHyderabad`;
+    setWaModal({ customer, phone, originalPhone: customer.phone });
+    setWaMsg(msg);
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!waModal?.phone) {
+      alert("Customer ka phone number mojood nahi hai ya ghalat hai.");
+      return;
+    }
+    const url = `https://api.whatsapp.com/send?phone=${waModal.phone}&text=${encodeURIComponent(waMsg)}`;
+    window.open(url, "_blank");
+    setWaModal(null);
+  };
+
+  const handleCreateArea = async (e) => {
+    e.preventDefault();
+    if (!newAreaName.trim()) return;
+    try {
+      await addArea({ name: newAreaName.trim(), city: "Hyderabad" });
+      setNewAreaName("");
+      setShowAddAreaModal(false);
+    } catch {
+      // error handled in context
+    }
+  };
+
+  const filteredCustomers = customers.filter((c) => {
+    if (selectedAreaFilter === "all") return true;
+    if (selectedAreaFilter === "unassigned") return !c.areaId;
+    return String(c.areaId) === String(selectedAreaFilter);
   });
 
   const totalCustomers = customers.length;
@@ -60,31 +121,30 @@ export default function Customers() {
     "w-full bg-[#f4f7fb] border border-[#e2e8f0] text-[#1e293b] rounded-lg px-3 py-2 text-sm focus:border-[#6c63ff] focus:outline-none transition-colors";
   const labelCls = "block text-[#64748b] text-xs font-medium mb-1";
 
-  // const handleAddCustomer = (e) => {
-  //   e.preventDefault();
-  //   if (!form.name) return;
-  //   addCustomer(form);
-  //   setForm({ name: '', phone: '', type: 'retail' });
-  //   setShowAdd(false);
-  // };
-
   const handleAddCustomer = async (e) => {
     e.preventDefault();
 
     if (!form.name) return;
 
-    if (editingCustomer) {
-      await updateCustomer(editingCustomer.id, form);
+    const payload = {
+      ...form,
+      area_id: form.area_id ? Number(form.area_id) : null,
+      credit_limit: Number(form.credit_limit || 0),
+    };
 
+    if (editingCustomer) {
+      await updateCustomer(editingCustomer.id, payload);
       setEditingCustomer(null);
     } else {
-      await addCustomer(form);
+      await addCustomer(payload);
     }
 
     setForm({
       name: "",
       phone: "",
       address: "",
+      area_id: "",
+      credit_limit: 0,
       type: "retail",
     });
 
@@ -164,6 +224,8 @@ export default function Customers() {
       name: customer.name,
       phone: customer.phone,
       address: customer.address || "",
+      area_id: customer.areaId || "",
+      credit_limit: customer.creditLimit || 0,
       type: customer.type,
     });
 
@@ -214,8 +276,32 @@ export default function Customers() {
         </div>
 
         <div className="bg-white rounded-xl border border-[#e2e8f0]">
-          <div className="p-4 border-b border-[#e2e8f0]">
-            <h3 className="text-[#1e293b] font-semibold">All Customers</h3>
+          <div className="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[#1e293b] font-semibold">All Customers</h3>
+              <span className="text-xs text-[#64748b] bg-[#f1f5f9] px-2 py-0.5 rounded-full font-bold">
+                {filteredCustomers.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#64748b] font-medium whitespace-nowrap">📍 Filter by Area:</span>
+              <select
+                value={selectedAreaFilter}
+                onChange={(e) => setSelectedAreaFilter(e.target.value)}
+                className="bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-[#1e3a8a]"
+              >
+                <option value="all">All Hyderabad Areas ({customers.length})</option>
+                <option value="unassigned">Direct / Unassigned Area</option>
+                {areas.map((a) => {
+                  const count = customers.filter((c) => String(c.areaId) === String(a.id)).length;
+                  return (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -223,9 +309,11 @@ export default function Customers() {
                 <tr className="border-b border-[#e2e8f0]">
                   {[
                     "Customer",
+                    "Area (Hyderabad)",
                     "Phone",
                     "Type",
                     "Total Purchase",
+                    "Credit Limit",
                     "Udhar Balance",
                     "Action",
                   ].map((h) => (
@@ -239,7 +327,7 @@ export default function Customers() {
                 </tr>
               </thead>
               <tbody>
-                {customers.map((c, idx) => (
+                {filteredCustomers.map((c, idx) => (
                   <tr
                     key={c.id}
                     className="border-b border-[#e2e8f0]/50 hover:bg-white/[0.03] transition-colors"
@@ -256,7 +344,16 @@ export default function Customers() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[#64748b]">{c.phone}</td>
+                    <td className="px-4 py-3">
+                      {c.areaName ? (
+                        <span className="bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 rounded-md text-xs font-semibold inline-flex items-center gap-1">
+                          <span>📍</span> {c.areaName}
+                        </span>
+                      ) : (
+                        <span className="text-[#94a3b8] text-xs italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748b]">{c.phone || "-"}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full text-xs px-2 py-0.5 ${c.type === "wholesale" ? "bg-[#1e3a8a]/20 text-[#1e3a8a]" : "bg-[#14b8a6]/20 text-[#14b8a6]"}`}
@@ -266,6 +363,20 @@ export default function Customers() {
                     </td>
                     <td className="px-4 py-3 text-[#1e293b] font-medium">
                       {fmt(c.totalBuy)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.creditLimit > 0 ? (
+                        <div>
+                          <span className="text-[#1e293b] font-semibold">{fmt(c.creditLimit)}</span>
+                          {c.balance > c.creditLimit && (
+                            <span className="block text-[11px] text-red-600 font-bold mt-0.5">
+                              ⚠️ Exceeded by {fmt(c.balance - c.creditLimit)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[#94a3b8] text-xs">No Limit</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -279,7 +390,17 @@ export default function Customers() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        {c.balance > 0 && (
+                          <button
+                            onClick={() => handleOpenWhatsApp(c)}
+                            className="text-xs text-[#16a34a] border border-[#16a34a]/30 hover:bg-[#16a34a]/10 px-2 py-1 rounded-lg flex items-center gap-1 transition font-medium"
+                            title="Send WhatsApp Payment Reminder"
+                          >
+                            <span>💬</span> WhatsApp
+                          </button>
+                        )}
+
                         {c.balance > 0 && (
                           <button
                             onClick={() => {
@@ -290,7 +411,7 @@ export default function Customers() {
                                 new Date().toISOString().split("T")[0],
                               );
                             }}
-                            className="text-xs text-[#22c55e] border border-[#22c55e]/30 px-2 py-1 rounded-lg"
+                            className="text-xs text-[#22c55e] border border-[#22c55e]/30 px-2 py-1 rounded-lg hover:bg-[#22c55e]/10 transition"
                           >
                             Receive Payment
                           </button>
@@ -301,30 +422,21 @@ export default function Customers() {
                             setSelectedCustomer(c);
                             setShowHistory(true);
                           }}
-                          className="text-xs text-sky-400 border border-sky-500/30 px-2 py-1 rounded-lg"
+                          className="text-xs text-sky-500 border border-sky-500/30 px-2 py-1 rounded-lg hover:bg-sky-50 transition"
                         >
                           History
                         </button>
 
-                        {/* <a
-          href={`${API_BASE_URL}/customers/${c.id}/ledger`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs border border-purple-500 text-purple-400 px-2 py-1 rounded-lg hover:bg-purple-500 hover:text-[#1e293b] transition"
-        >
-        Ledger
-        </a> */}
-
                         <button
                           onClick={() => handleEdit(c)}
-                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg"
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg transition"
                         >
                           Edit
                         </button>
 
                         <button
                           onClick={() => handleDelete(c.id)}
-                          className="text-xs bg-[#ef4444] hover:bg-[#dc2626] text-white px-3 py-1 rounded-lg"
+                          className="text-xs bg-[#ef4444] hover:bg-[#dc2626] text-white px-2 py-1 rounded-lg transition"
                         >
                           Delete
                         </button>
@@ -332,13 +444,13 @@ export default function Customers() {
                     </td>
                   </tr>
                 ))}
-                {customers.length === 0 && (
+                {filteredCustomers.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={8}
                       className="text-center text-[#64748b] py-12"
                     >
-                      No customers yet
+                      No customers found for selected area
                     </td>
                   </tr>
                 )}
@@ -348,11 +460,14 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* Add Customer Modal */}
+      {/* Add / Edit Customer Modal */}
       <Modal
         isOpen={showAdd}
-        onClose={() => setShowAdd(false)}
-        title="Add New Customer"
+        onClose={() => {
+          setShowAdd(false);
+          setEditingCustomer(null);
+        }}
+        title={editingCustomer ? "Edit Customer" : "Add New Customer"}
       >
         <form onSubmit={handleAddCustomer} className="space-y-4">
           <div>
@@ -376,17 +491,56 @@ export default function Customers() {
               placeholder="0300-1234567"
             />
           </div>
-            <div>
-              <label className={labelCls}>Address</label>
-              <input
-                className={inputCls}
-                value={form.address}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, address: e.target.value }))
-                }
-                placeholder="Enter Address"
-              />
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className={labelCls}>Area / Route (Hyderabad)</label>
+              <button
+                type="button"
+                onClick={() => setShowAddAreaModal(true)}
+                className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+              >
+                + Add New Area
+              </button>
             </div>
+            <select
+              className={inputCls}
+              value={form.area_id}
+              onChange={(e) => setForm((p) => ({ ...p, area_id: e.target.value }))}
+            >
+              <option value="">Select Area in Hyderabad...</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Shop Address / Street</label>
+            <input
+              className={inputCls}
+              value={form.address}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, address: e.target.value }))
+              }
+              placeholder="e.g. Main Road, Near Bank"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>
+              Credit Limit (Rs.) <span className="text-[#94a3b8] font-normal">(0 = No Limit / Unlimited)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              className={inputCls}
+              value={form.credit_limit}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, credit_limit: e.target.value }))
+              }
+              placeholder="e.g. 50000 (0 for unlimited)"
+            />
+          </div>
           <div>
             <label className={labelCls}>Customer Type</label>
             <select
@@ -401,8 +555,11 @@ export default function Customers() {
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setShowAdd(false)}
-              className="px-4 py-2 text-sm border border-[#e2e8f0] text-[#64748b] rounded-lg hover:bg-white/5 transition-colors"
+              onClick={() => {
+                setShowAdd(false);
+                setEditingCustomer(null);
+              }}
+              className="px-4 py-2 text-sm border border-[#e2e8f0] text-[#64748b] rounded-lg hover:bg-black/5 transition-colors"
             >
               Cancel
             </button>
@@ -410,7 +567,7 @@ export default function Customers() {
               type="submit"
               className="px-6 py-2 text-sm bg-[#1e3a8a] hover:bg-[#1e40af] text-white rounded-lg font-medium transition-colors"
             >
-              Add Customer
+              {editingCustomer ? "Update Customer" : "Add Customer"}
             </button>
           </div>
         </form>
@@ -509,6 +666,103 @@ export default function Customers() {
         onHide={() => setShowHistory(false)}
         customer={selectedCustomer}
       />
+
+      {/* WhatsApp Payment Reminder Modal */}
+      <Modal
+        isOpen={!!waModal}
+        onClose={() => setWaModal(null)}
+        title="Send WhatsApp Payment Reminder"
+        size="md"
+      >
+        {waModal && (
+          <div className="space-y-4">
+            <div className="bg-[#f8fafc] rounded-xl p-4 border border-[#e2e8f0]">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-semibold text-[#64748b] uppercase">Customer</span>
+                <span className="text-xs text-[#1e3a8a] bg-[#1e3a8a]/10 px-2 py-0.5 rounded font-medium">
+                  {waModal.customer.type}
+                </span>
+              </div>
+              <p className="text-base font-bold text-[#1e293b]">{waModal.customer.name}</p>
+              <div className="mt-2 flex flex-wrap justify-between items-center text-xs gap-2">
+                <span className="text-[#64748b]">
+                  Phone: <strong className="text-[#1e293b]">{waModal.originalPhone || "Not set"}</strong>
+                  {waModal.phone && (
+                    <span className="text-[#16a34a] ml-1">(WhatsApp: +{waModal.phone})</span>
+                  )}
+                </span>
+                <span className="text-amber-600 font-bold">
+                  Pending Udhar: {fmt(waModal.customer.balance)}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>WhatsApp Message (Aap isay zaroorat ke mutabiq edit bhi kar sakte hain)</label>
+              <textarea
+                rows={6}
+                className={inputCls}
+                value={waMsg}
+                onChange={(e) => setWaMsg(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setWaModal(null)}
+                className="px-4 py-2 text-sm border border-[#e2e8f0] text-[#64748b] rounded-lg hover:bg-black/5 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendWhatsApp}
+                className="px-5 py-2 text-sm bg-[#16a34a] hover:bg-[#15803d] text-white rounded-lg font-medium transition flex items-center gap-2 shadow-sm"
+              >
+                <span>💬</span> Open in WhatsApp
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Quick Add Area Modal */}
+      <Modal
+        isOpen={showAddAreaModal}
+        onClose={() => setShowAddAreaModal(false)}
+        title="Add New Area in Hyderabad"
+        size="sm"
+      >
+        <form onSubmit={handleCreateArea} className="space-y-4">
+          <div>
+            <label className={labelCls}>Area Name (e.g. Naseem Nagar, Latifabad Unit 7) *</label>
+            <input
+              type="text"
+              className={inputCls}
+              value={newAreaName}
+              onChange={(e) => setNewAreaName(e.target.value)}
+              placeholder="e.g. Citizen Colony Phase 1"
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAddAreaModal(false)}
+              className="px-4 py-2 text-sm border border-[#e2e8f0] text-[#64748b] rounded-lg hover:bg-black/5"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-sm bg-[#1e3a8a] hover:bg-[#1e40af] text-white rounded-lg font-bold shadow"
+            >
+              Save Area
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

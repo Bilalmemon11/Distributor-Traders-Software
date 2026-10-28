@@ -39,15 +39,15 @@ class ProductController extends Controller
             'unit_id' => 'required|exists:units,id',
 
             'variants' => 'required|array|min:1',
-
             'variants.*.variant_name' => 'required|string|max:100',
-
+            'variants.*.sku' => 'nullable|string|max:100',
+            'variants.*.barcode' => 'nullable|string|max:100',
+            'variants.*.batch_no' => 'nullable|string|max:100',
+            'variants.*.expiry_date' => 'nullable|date',
+            'variants.*.mfg_date' => 'nullable|date',
             'variants.*.price' => 'required|numeric|min:0',
-
             'variants.*.cost_price' => 'required|numeric|min:0',
-
             'variants.*.stock_qty' => 'nullable|numeric|min:0',
-
             'variants.*.reorder_level' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
         ]);
@@ -74,17 +74,15 @@ return DB::transaction(function () use ($validated) {
 
         $variantModel = ProductVariant::create([
             'product_id' => $product->id,
-
             'variant_name' => $variant['variant_name'],
-
-            'sku' => $sku . '-' . ($index + 1),
-
+            'sku' => !empty($variant['sku']) ? $variant['sku'] : ($sku . '-' . ($index + 1)),
+            'barcode' => $variant['barcode'] ?? null,
+            'batch_no' => $variant['batch_no'] ?? null,
+            'expiry_date' => $variant['expiry_date'] ?? null,
+            'mfg_date' => $variant['mfg_date'] ?? null,
             'price' => $variant['price'],
-
             'cost_price' => $variant['cost_price'],
-
             'stock_qty' => $variant['stock_qty'] ?? 0,
-
             'reorder_level' => $variant['reorder_level'] ?? 0,
         ]);
 
@@ -139,15 +137,15 @@ return DB::transaction(function () use ($validated) {
         'variants' => 'sometimes|array',
 
         'variants.*.id' => 'nullable|integer|exists:product_variants,id',
-
         'variants.*.variant_name' => 'required|string|max:100',
-
+        'variants.*.sku' => 'nullable|string|max:100',
+        'variants.*.barcode' => 'nullable|string|max:100',
+        'variants.*.batch_no' => 'nullable|string|max:100',
+        'variants.*.expiry_date' => 'nullable|date',
+        'variants.*.mfg_date' => 'nullable|date',
         'variants.*.price' => 'required|numeric|min:0',
-
         'variants.*.cost_price' => 'required|numeric|min:0',
-
         'variants.*.stock_qty' => 'nullable|numeric|min:0',
-
         'variants.*.reorder_level' => 'nullable|integer|min:0',
     ]);
 
@@ -173,27 +171,32 @@ return DB::transaction(function () use ($validated) {
             foreach ($validated['variants'] as $index => $variant) {
 
                 if (!empty($variant['id'])) {
-                    ProductVariant::where('id', $variant['id'])->update([
+                    $updateData = [
                         'variant_name' => $variant['variant_name'],
                         'price' => $variant['price'],
                         'cost_price' => $variant['cost_price'],
                         'stock_qty' => $variant['stock_qty'] ?? 0,
                         'reorder_level' => $variant['reorder_level'] ?? 0,
-                    ]);
+                    ];
+                    if (isset($variant['sku'])) $updateData['sku'] = $variant['sku'];
+                    if (array_key_exists('barcode', $variant)) $updateData['barcode'] = $variant['barcode'];
+                    if (array_key_exists('batch_no', $variant)) $updateData['batch_no'] = $variant['batch_no'];
+                    if (array_key_exists('expiry_date', $variant)) $updateData['expiry_date'] = $variant['expiry_date'];
+                    if (array_key_exists('mfg_date', $variant)) $updateData['mfg_date'] = $variant['mfg_date'];
+
+                    ProductVariant::where('id', $variant['id'])->update($updateData);
                 } else {
                     ProductVariant::create([
                         'product_id' => $product->id,
-
                         'variant_name' => $variant['variant_name'],
-
-                        'sku' => $product->sku . '-' . ($index + 1),
-
+                        'sku' => !empty($variant['sku']) ? $variant['sku'] : ($product->sku . '-' . ($index + 1)),
+                        'barcode' => $variant['barcode'] ?? null,
+                        'batch_no' => $variant['batch_no'] ?? null,
+                        'expiry_date' => $variant['expiry_date'] ?? null,
+                        'mfg_date' => $variant['mfg_date'] ?? null,
                         'price' => $variant['price'],
-
                         'cost_price' => $variant['cost_price'],
-
                         'stock_qty' => $variant['stock_qty'] ?? 0,
-
                         'reorder_level' => $variant['reorder_level'] ?? 0,
                     ]);
                 }
@@ -224,5 +227,19 @@ return DB::transaction(function () use ($validated) {
         } catch (\Exception $e) {
             return $this->error('Cannot delete product: ' . $e->getMessage(), 400);
         }
+    }
+
+    public function updateVariantBatchExpiry(Request $request, $variantId): JsonResponse
+    {
+        $validated = $request->validate([
+            'batch_no' => 'nullable|string|max:100',
+            'expiry_date' => 'nullable|date',
+            'mfg_date' => 'nullable|date',
+        ]);
+
+        $variant = ProductVariant::findOrFail($variantId);
+        $variant->update($validated);
+
+        return $this->success($variant, 'Batch and expiry date updated successfully');
     }
 }

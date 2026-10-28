@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import StatCard from '../components/StatCard';
 import Topbar from '../components/Topbar';
@@ -50,6 +51,39 @@ export default function Dashboard() {
     <div className="flex-1 overflow-y-auto">
       <Topbar title="Qadri Distributors Dashboard" />
       <div className="p-6 space-y-6">
+        {/* Expiry Warning Banner (30 Days Alert) */}
+        {(data.expired_count > 0 || data.expiring_soon_count > 0) && (
+          <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">⏰</span>
+              <div>
+                <h4 className="text-sm font-bold text-red-800">
+                  Stock Expiry Warning Alert (30 Days Threshold)
+                </h4>
+                <p className="text-xs text-[#64748b] mt-0.5">
+                  {data.expired_count > 0 && (
+                    <strong className="text-red-600 mr-2">
+                      🔴 {data.expired_count} product(s) Expired!
+                    </strong>
+                  )}
+                  {data.expiring_soon_count > 0 && (
+                    <strong className="text-amber-700">
+                      🟡 {data.expiring_soon_count} product(s) expiring within 30 days!
+                    </strong>
+                  )}
+                  {" "}Check shampoo, cosmetic & liquid inventory to clear or return to supplier.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/inventory"
+              className="px-4 py-2 text-xs bg-[#1e3a8a] hover:bg-[#1e40af] text-white font-bold rounded-lg shadow-md transition whitespace-nowrap"
+            >
+              Open Inventory & Alerts ➔
+            </Link>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <StatCard label="Total Sales" value={fmt(data.total_sales)} sub="All invoices" color="accent" icon="💰" />
           <StatCard label="Cash Received" value={fmt(data.cash_collected)} sub="All payments collected" color="green" icon="✅" />

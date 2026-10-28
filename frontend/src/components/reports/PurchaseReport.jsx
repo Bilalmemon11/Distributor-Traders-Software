@@ -252,18 +252,18 @@ export default function PurchaseReport({ filters }) {
             </tbody>
 
             <tfoot>
-              <tr className="bg-[#1b2233] font-bold">
-                <td colSpan={3} className="px-4 py-4">
+              <tr className="bg-[#1b2233] font-bold text-white">
+                <td colSpan={3} className="px-4 py-4 text-white">
                   Totals
                 </td>
 
-                <td className="px-4 py-4 text-blue-400">
+                <td className="px-4 py-4 text-white">
                   {fmt(totalPurchase)}
                 </td>
 
-                <td className="px-4 py-4 text-green-400">{fmt(totalPaid)}</td>
+                <td className="px-4 py-4 text-white">{fmt(totalPaid)}</td>
 
-                <td className="px-4 py-4 text-red-400">{fmt(totalPending)}</td>
+                <td className="px-4 py-4 text-white">{fmt(totalPending)}</td>
               </tr>
             </tfoot>
           </table>
@@ -298,7 +298,7 @@ export default function PurchaseReport({ filters }) {
           <button
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
-            className="px-3 py-1 rounded bg-[#2a3248] disabled:opacity-40"
+            className="px-3 py-1 rounded bg-[#2a3248] text-white hover:bg-[#3b4564] disabled:opacity-40 transition"
           >
             Prev
           </button>
@@ -306,7 +306,7 @@ export default function PurchaseReport({ filters }) {
           <button
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
-            className="px-3 py-1 rounded bg-[#2a3248] disabled:opacity-40"
+            className="px-3 py-1 rounded bg-[#2a3248] text-white hover:bg-[#3b4564] disabled:opacity-40 transition"
           >
             Next
           </button>

@@ -18,7 +18,7 @@ class CustomerController extends Controller
 
     public function index(): JsonResponse
     {
-        $customers = Customer::orderBy('name')->get();
+        $customers = Customer::with('area')->orderBy('name')->get();
 
         return $this->success($customers);
     }
@@ -29,19 +29,21 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:1000',
+            'area_id' => 'nullable|exists:areas,id',
             'type' => 'nullable|in:retail,wholesale',
             'balance' => 'nullable|numeric|min:0',
+            'credit_limit' => 'nullable|numeric|min:0',
             'total_purchase' => 'nullable|numeric|min:0',
         ]);
 
         $customer = Customer::create($validated);
 
-        return $this->success($customer, 'Customer created', 201);
+        return $this->success($customer->load('area'), 'Customer created', 201);
     }
 
     public function show(Customer $customer): JsonResponse
     {
-        $customer->load('invoices');
+        $customer->load(['invoices', 'area']);
 
         return $this->success($customer);
     }
@@ -52,14 +54,16 @@ class CustomerController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'phone' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:1000',
+            'area_id' => 'nullable|exists:areas,id',
             'type' => 'nullable|in:retail,wholesale',
             'balance' => 'nullable|numeric|min:0',
+            'credit_limit' => 'nullable|numeric|min:0',
             'total_purchase' => 'nullable|numeric|min:0',
         ]);
 
         $customer->update($validated);
 
-        return $this->success($customer->fresh(), 'Customer updated');
+        return $this->success($customer->fresh()->load('area'), 'Customer updated');
     }
 
     public function destroy(Customer $customer): JsonResponse

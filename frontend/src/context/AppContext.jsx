@@ -32,6 +32,10 @@ const mapProduct = (p) => ({
     id: v.id,
     variant_name: v.variant_name,
     sku: v.sku,
+    barcode: v.barcode || "",
+    batch_no: v.batch_no || "",
+    expiry_date: v.expiry_date ? String(v.expiry_date).split("T")[0] : null,
+    mfg_date: v.mfg_date ? String(v.mfg_date).split("T")[0] : null,
 
     price: Number(v.price),
     cost_price: Number(v.cost_price),
@@ -45,8 +49,13 @@ const mapCustomer = (c) => ({
   id: c.id,
   name: c.name,
   phone: c.phone || "",
+  address: c.address || "",
+  areaId: c.area_id || null,
+  areaName: c.area?.name || "",
+  area: c.area || null,
   type: c.type,
   balance: Number(c.balance),
+  creditLimit: Number(c.credit_limit || 0),
   totalBuy: Number(c.total_purchase),
 });
 
@@ -64,11 +73,23 @@ const mapInvoice = (inv) => ({
   invoiceNo: inv.invoice_no,
   customerId: inv.customer_id,
   customerName: inv.customer_name || inv.customer?.name || "",
+  salesmanId: inv.salesman_id || null,
+  salesmanName: inv.salesman_name || inv.salesman?.name || "",
+  deliveryManId: inv.delivery_man_id || null,
+  deliveryManName: inv.delivery_man_name || inv.delivery_man?.name || "Self / Direct",
+  deliveryStatus: inv.delivery_status || "delivered",
+  deliveryDate: inv.delivery_date ? String(inv.delivery_date).split("T")[0] : null,
+  deliveryNotes: inv.delivery_notes || "",
+  commissionAmount: Number(inv.commission_amount || 0),
   date: String(inv.date).split("T")[0],
   subtotal: Number(inv.subtotal),
   discount: Number(inv.discount),
   total: Number(inv.total),
   paid: Number(inv.paid),
+  cashPaid: Number(inv.cash_paid || 0),
+  onlinePaid: Number(inv.online_paid || 0),
+  onlineMethod: inv.online_method || "",
+  paymentNotes: inv.payment_notes || "",
   balance: Number(inv.balance),
   type: inv.payment_type,
   items: (inv.items || []).map((i) => ({
@@ -185,7 +206,7 @@ const initialState = {
   purchaseReturns: [],
   saleReturns: [],
 
-  loading: true,
+  loading: false,
   error: null,
 };
 
@@ -228,11 +249,93 @@ export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [salesmen, setSalesmen] = useState([]);
+  const [deliveryMen, setDeliveryMen] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
   const [reportDashboard, setReportDashboard] = useState(null);
   const [company, setCompany] = useState(null);
   const [backups, setBackups] = useState([]);
   const [profitLoss, setProfitLoss] = useState(null);
+
+  const [heldInvoices, setHeldInvoices] = useState([]);
+
+  const [token, setToken] = useState(() => localStorage.getItem("token") || null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const login = async (loginId, password) => {
+    try {
+      const res = await api.post("/login", { login: loginId, password });
+      if (res.data?.success) {
+        const { user: userData, token: authToken } = res.data.data;
+        localStorage.setItem("token", authToken);
+        localStorage.setItem("user", JSON.stringify(userData));
+        setToken(authToken);
+        setUser(userData);
+        return { success: true, user: userData };
+      }
+      return { success: false, message: res.data?.message || "Login failed" };
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.login?.[0] ||
+        "Invalid username or password";
+      return { success: false, message: msg };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await api.post("/logout");
+    } catch (e) {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setToken(null);
+      setUser(null);
+    }
+  };
+
+  const fetchHeldInvoices = useCallback(async () => {
+    try {
+      const res = await api.get("/held-invoices");
+      const list = res.data.data || [];
+      setHeldInvoices(list);
+      return list;
+    } catch (err) {
+      console.error("Failed to fetch held invoices", err);
+      return [];
+    }
+  }, []);
+
+  const holdInvoice = async (invoicePayload) => {
+    try {
+      const res = await api.post("/held-invoices", invoicePayload);
+      await fetchHeldInvoices();
+      return res.data.data;
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to hold invoice");
+      throw err;
+    }
+  };
+
+  const deleteHeldInvoice = async (id) => {
+    try {
+      await api.delete(`/held-invoices/${id}`);
+      await fetchHeldInvoices();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to delete held invoice");
+      throw err;
+    }
+  };
 
   const [monthlySales, setMonthlySales] = useState([]);
   const showError = (msg) => {
@@ -253,6 +356,7 @@ export function AppProvider({ children }) {
         inventoryRes,
         purchaseReturnRes,
         saleReturnRes,
+        heldRes,
       ] = await Promise.all([
         api.get("/products"),
         api.get("/customers"),
@@ -263,7 +367,10 @@ export function AppProvider({ children }) {
         api.get("/inventory-transactions"),
         api.get("/purchase-returns"),
         api.get("/sale-returns"),
+        api.get("/held-invoices"),
       ]);
+
+      setHeldInvoices(heldRes.data.data || []);
 
       dispatch({
         type: "SET_ALL",
@@ -332,19 +439,149 @@ export function AppProvider({ children }) {
     await loadExpenseCategories();
   };
 
+  const loadAreas = async () => {
+    try {
+      const res = await api.get("/areas");
+      setAreas(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load areas", err);
+    }
+  };
+
+  const addArea = async (data) => {
+    try {
+      await api.post("/areas", data);
+      await loadAreas();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to add area");
+      throw err;
+    }
+  };
+
+  const updateArea = async (id, data) => {
+    try {
+      await api.put(`/areas/${id}`, data);
+      await loadAreas();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to update area");
+      throw err;
+    }
+  };
+
+  const deleteArea = async (id) => {
+    try {
+      await api.delete(`/areas/${id}`);
+      await loadAreas();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to delete area");
+      throw err;
+    }
+  };
+
+  const loadSalesmen = async () => {
+    try {
+      const res = await api.get("/salesmen");
+      setSalesmen(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load salesmen", err);
+    }
+  };
+
+  const addSalesman = async (data) => {
+    try {
+      await api.post("/salesmen", data);
+      await loadSalesmen();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to add salesman");
+      throw err;
+    }
+  };
+
+  const updateSalesman = async (id, data) => {
+    try {
+      await api.put(`/salesmen/${id}`, data);
+      await loadSalesmen();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to update salesman");
+      throw err;
+    }
+  };
+
+  const deleteSalesman = async (id) => {
+    try {
+      await api.delete(`/salesmen/${id}`);
+      await loadSalesmen();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to delete salesman");
+      throw err;
+    }
+  };
+
+  const loadDeliveryMen = async () => {
+    try {
+      const res = await api.get("/delivery-men");
+      setDeliveryMen(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load delivery men", err);
+    }
+  };
+
+  const addDeliveryMan = async (data) => {
+    try {
+      await api.post("/delivery-men", data);
+      await loadDeliveryMen();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to add delivery man");
+      throw err;
+    }
+  };
+
+  const updateDeliveryMan = async (id, data) => {
+    try {
+      await api.put(`/delivery-men/${id}`, data);
+      await loadDeliveryMen();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to update delivery man");
+      throw err;
+    }
+  };
+
+  const deleteDeliveryMan = async (id) => {
+    try {
+      await api.delete(`/delivery-men/${id}`);
+      await loadDeliveryMen();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to delete delivery man");
+      throw err;
+    }
+  };
+
+  const updateInvoiceDeliveryStatus = async (invoiceId, data) => {
+    try {
+      await api.post(`/invoices/${invoiceId}/delivery-status`, data);
+      await refreshAll();
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to update delivery status");
+      throw err;
+    }
+  };
+
   useEffect(() => {
     localStorage.removeItem("qadri_distributors_state");
 
-    refreshAll();
-
-    loadCategories();
-
-    loadUnits();
-
-    loadExpenseCategories();
-
-    loadBackups();
-  }, [refreshAll]);
+    if (token) {
+      refreshAll();
+      loadCategories();
+      loadUnits();
+      loadExpenseCategories();
+      loadAreas();
+      loadSalesmen();
+      loadDeliveryMen();
+      loadBackups();
+    } else {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }, [token, refreshAll]);
 
   // fetchCompany()
   async function fetchCompany() {
@@ -426,12 +663,15 @@ export function AppProvider({ children }) {
         discount: invoiceData.discount || 0,
         total: invoiceData.total,
         paid: invoiceData.paid || 0,
+        cash_paid: invoiceData.cashPaid || 0,
+        online_paid: invoiceData.onlinePaid || 0,
+        online_method: invoiceData.onlineMethod || null,
+        payment_notes: invoiceData.paymentNotes || null,
         balance: invoiceData.balance || 0,
-        payment_type: invoiceData.type === "credit" ? "credit" : "cash",
+        payment_type: invoiceData.type || "cash",
         items: invoiceData.items.map((i) => ({
           product_id: i.productId,
-          product_variant_id: i.variantId, // <-- Ye add karo
-
+          product_variant_id: i.variantId,
           qty: i.qty,
           unit_price: i.price,
           total: i.total,
@@ -459,12 +699,16 @@ export function AppProvider({ children }) {
         discount: invoiceData.discount,
         total: invoiceData.total,
         paid: invoiceData.paid,
+        cash_paid: invoiceData.cashPaid || 0,
+        online_paid: invoiceData.onlinePaid || 0,
+        online_method: invoiceData.onlineMethod || null,
+        payment_notes: invoiceData.paymentNotes || null,
         balance: invoiceData.balance,
         payment_type: invoiceData.type,
 
         items: invoiceData.items.map((i) => ({
           product_id: i.productId,
-          product_variant_id: i.variantId, // <-- Ye line add karo
+          product_variant_id: i.variantId,
           qty: i.qty,
           unit_price: i.price,
           total: i.total,
@@ -690,6 +934,20 @@ export function AppProvider({ children }) {
       showError(err.response?.data?.message || "Failed to update stock");
     }
   };
+
+  const updateVariantBatchExpiry = async (variantId, data) => {
+    try {
+      await api.post(`/variants/${variantId}/batch-expiry`, data);
+      const res = await api.get("/products");
+      dispatch({
+        type: "SET_PRODUCTS",
+        payload: res.data.data.map(mapProduct),
+      });
+    } catch (err) {
+      showError(err.response?.data?.message || "Failed to update batch & expiry");
+      throw err;
+    }
+  };
   const deleteProduct = async (id) => {
     try {
       await api.delete(`/products/${id}`);
@@ -908,11 +1166,35 @@ export function AppProvider({ children }) {
 
         addExpenseCategory,
 
+        areas,
+        loadAreas,
+        addArea,
+        updateArea,
+        deleteArea,
+
+        salesmen,
+        loadSalesmen,
+        addSalesman,
+        updateSalesman,
+        deleteSalesman,
+
+        deliveryMen,
+        loadDeliveryMen,
+        addDeliveryMan,
+        updateDeliveryMan,
+        deleteDeliveryMan,
+        updateInvoiceDeliveryStatus,
+
         addInvoice,
         deleteInvoice,
         printInvoice,
         fetchInvoice,
         updateInvoice,
+
+        heldInvoices,
+        fetchHeldInvoices,
+        holdInvoice,
+        deleteHeldInvoice,
 
         addSaleReturn,
         fetchSaleReturn,
@@ -943,6 +1225,7 @@ export function AppProvider({ children }) {
         addProduct,
         updateProduct,
         updateStock,
+        updateVariantBatchExpiry,
         deleteProduct,
 
         addPurchase,
@@ -961,6 +1244,13 @@ export function AppProvider({ children }) {
         receivePayment,
         getCustomerPayments,
         payVendor,
+
+        user,
+        token,
+        login,
+        logout,
+        isAdmin: user?.role === "admin",
+        isCashier: user?.role === "cashier",
       }}
     >
       {children}

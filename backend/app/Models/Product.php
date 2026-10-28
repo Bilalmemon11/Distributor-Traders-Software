@@ -18,6 +18,9 @@ class Product extends Model
         'price',
         'stock_qty',
         'reorder_level',
+        'batch_no',
+        'expiry_date',
+        'mfg_date',
         'status',
         'description',
     ];
@@ -29,6 +32,8 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'stock_qty' => 'decimal:2',
             'status' => 'boolean',
+            'expiry_date' => 'date',
+            'mfg_date' => 'date',
         ];
     }
 

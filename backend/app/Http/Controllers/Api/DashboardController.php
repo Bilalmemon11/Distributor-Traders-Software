@@ -28,8 +28,15 @@ class DashboardController extends Controller
             ->sum(\Illuminate\Support\Facades\DB::raw('invoice_items.qty * product_variants.cost_price'));
         $totalProfit = $totalSales - $totalCogs - $totalExpenses;
 
+        $company = \App\Models\Company::first();
+        $lowStockThreshold = $company?->low_stock_threshold ?? 10;
+        $expiryAlertDays = $company?->expiry_alert_days ?? 60;
+
         $lowStockVariants = \App\Models\ProductVariant::with('product')
-            ->whereColumn('stock_qty', '<=', 'reorder_level')
+            ->where(function ($q) use ($lowStockThreshold) {
+                $q->whereColumn('stock_qty', '<=', 'reorder_level')
+                  ->orWhere('stock_qty', '<=', $lowStockThreshold);
+            })
             ->get()
             ->map(fn($v) => [
                 'id' => $v->id,
@@ -80,6 +87,20 @@ class DashboardController extends Controller
             ->orderByDesc('total')
             ->get();
 
+        $today = now()->startOfDay();
+        $expiryWindow = now()->addDays($expiryAlertDays)->endOfDay();
+
+        $expiredCount = \App\Models\ProductVariant::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<', $today)
+            ->where('stock_qty', '>', 0)
+            ->count();
+
+        $expiringSoonCount = \App\Models\ProductVariant::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '>=', $today)
+            ->whereDate('expiry_date', '<=', $expiryWindow)
+            ->where('stock_qty', '>', 0)
+            ->count();
+
         return $this->success([
             'total_sales' => (float) $totalSales,
             'cash_collected' => (float) $cashCollected,
@@ -93,6 +114,8 @@ class DashboardController extends Controller
             'vendor_dues' => $vendorDues,
             'customer_dues' => $customerDues,
             'expense_by_category' => $expenseByCategory,
+            'expired_count' => $expiredCount,
+            'expiring_soon_count' => $expiringSoonCount,
         ]);
     }
 }

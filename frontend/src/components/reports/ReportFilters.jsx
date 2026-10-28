@@ -49,6 +49,12 @@ export default function ReportFilters({
             className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2 text-[#1e293b]"
           >
             <option value="sales">Sales Report</option>
+            <option value="velocity">⚡ Fast-Moving vs Dead Stock</option>
+            <option value="expiry-alerts">⏰ Batch Number & Expiry Alerts</option>
+            <option value="area-sales">📍 Hyderabad Area Wise Sales</option>
+            <option value="area-recovery">💵 Hyderabad Area Wise Recovery</option>
+            <option value="salesmen">👨‍💼 Salesmen & Booker Commission</option>
+            <option value="supply-men">🚚 Supply Men & Delivery Report</option>
             <option value="purchase">Purchase Report</option>
             <option value="customer">Customer Report</option>
             <option value="vendor">Vendor Report</option>

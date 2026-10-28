@@ -172,19 +172,19 @@ export default function StockHistory() {
       <Topbar
         title="Stock History"
         action={
-          <div className="flex gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={exportExcel}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm"
+              className="px-4 py-2 bg-[#16a34a] hover:bg-[#15803d] border border-[#16a34a] rounded-xl text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5"
             >
-              📊 Export Excel
+              <span>📊</span> Export Excel
             </button>
 
             <button
               onClick={exportPDF}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white"
+              className="px-4 py-2 bg-[#dc2626] hover:bg-[#b91c1c] border border-[#dc2626] rounded-xl text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5"
             >
-              Export PDF
+              <span>📄</span> Export PDF
             </button>
           </div>
         }

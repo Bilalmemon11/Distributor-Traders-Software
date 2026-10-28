@@ -57,16 +57,16 @@
         .erp-box {
             border: 2px solid #000;
             display: inline-block;
-            padding: 5px 15px;
+            padding: 4px 10px;
             background-color: #f1f5f9;
-            margin-top: 40px;
+            margin-top: 30px;
             border-radius: 4px;
         }
         .erp-text {
             color: #047857;
             font-weight: 900;
-            letter-spacing: 1px;
-            font-size: 14px;
+            letter-spacing: 0.5px;
+            font-size: 11px;
         }
     </style>
 </head>
@@ -128,8 +128,16 @@ function convertNumberToWord($num = false) {
 $amountInWords = convertNumberToWord($invoice->total) . ' RUPEES ONLY.';
 @endphp
 
-<div class="company-name">QADRI DISTRIBUTOR & Traders</div>
-<div class="city-name">HYDERABAD.</div>
+<div class="company-name">{{ $company?->company_name ?? 'QADRI DISTRIBUTOR & TRADERS' }}</div>
+<div class="city-name">
+    {{ $company?->city ? strtoupper($company->city) . '.' : 'HYDERABAD.' }}
+    @if($company?->phone)
+        <span style="font-size: 11px; font-weight: normal; margin-left: 10px;">TEL: {{ $company->phone }}</span>
+    @endif
+    @if($company?->ntn)
+        <span style="font-size: 11px; font-weight: normal; margin-left: 10px;">NTN: {{ $company->ntn }}</span>
+    @endif
+</div>
 
 <table width="100%" style="margin-top: 10px; border: none;">
     <tr>
@@ -139,6 +147,9 @@ $amountInWords = convertNumberToWord($invoice->total) . ' RUPEES ONLY.';
                     <tr><td width="70">I.D.</td><td width="10">:</td><td>{{ $invoice->customer_id }}</td></tr>
                     <tr><td>M/s.</td><td>:</td><td>{{ strtoupper($invoice->customer->name) }}</td></tr>
                     <tr><td>ADDRESS</td><td>:</td><td>{{ strtoupper($invoice->customer->address ?? '-') }}</td></tr>
+                    @if($company?->show_customer_area ?? true)
+                    <tr><td>AREA</td><td>:</td><td>{{ strtoupper($invoice->customer->area?->name ?? 'HYDERABAD') }}</td></tr>
+                    @endif
                     <tr><td>PHONE</td><td>:</td><td>{{ $invoice->customer->phone ?? '-' }}</td></tr>
                 </table>
             </div>
@@ -152,7 +163,8 @@ $amountInWords = convertNumberToWord($invoice->total) . ' RUPEES ONLY.';
                 <div style="display: table-cell; width: 75%; vertical-align: top; padding: 10px;">
                     <table class="box-table" width="100%" style="font-size: 12px; font-weight: bold;">
                         <tr><td width="70">INVOICE #</td><td width="10">:</td><td>{{ $invoice->invoice_no }}</td><td align="right">{{ \Carbon\Carbon::parse($invoice->date)->format('d-M-Y') }}</td></tr>
-                        <tr><td>BOOKED BY</td><td>:</td><td colspan="2">ADMIN</td></tr>
+                        <tr><td>BOOKED BY</td><td>:</td><td colspan="2">{{ strtoupper($invoice->salesman?->name ?? 'ADMIN') }}</td></tr>
+                        <tr><td>SUPPLY MAN</td><td>:</td><td colspan="2">{{ strtoupper($invoice->deliveryMan?->name ?? 'SELF / DIRECT') }}</td></tr>
                         <tr><td>PAYMENT</td><td>:</td><td colspan="2">{{ strtoupper($invoice->payment_type) }}</td></tr>
                         <tr><td>STATUS</td><td>:</td><td colspan="2">{{ $invoice->balance <= 0 ? 'PAID' : 'PENDING' }}</td></tr>
                     </table>
@@ -198,10 +210,6 @@ $amountInWords = convertNumberToWord($invoice->total) . ' RUPEES ONLY.';
             <div style="font-size: 11px; color: #333; line-height: 1.5; font-weight: bold;">
                 {{ $amountInWords }}
             </div>
-            
-            <div class="erp-box">
-                <span class="erp-text">StackNova-Tech: +923-373375526</span>
-            </div>
         </td>
         
         <td width="40%" style="vertical-align: top; border: none;">
@@ -230,14 +238,78 @@ $amountInWords = convertNumberToWord($invoice->total) . ' RUPEES ONLY.';
                         </div>
                     </td>
                 </tr>
+                @if($invoice->payment_type === 'split')
                 <tr>
                     <td style="border: none;">CASH RECEIVED</td>
+                    <td class="value" style="border: none;">{{ number_format($invoice->cash_paid ?? 0, 2) }}</td>
+                </tr>
+                <tr>
+                    <td style="border: none;">ONLINE ({{ strtoupper($invoice->online_method ?? 'ONLINE') }})</td>
+                    <td class="value" style="border: none;">{{ number_format($invoice->online_paid ?? 0, 2) }}</td>
+                </tr>
+                <tr>
+                    <td style="border: none; font-weight: bold;">TOTAL RECEIVED</td>
+                    <td class="value" style="border: none; font-weight: bold;">{{ number_format($invoice->paid, 2) }}</td>
+                </tr>
+                @else
+                <tr>
+                    <td style="border: none;">RECEIVED ({{ strtoupper($invoice->payment_type) }})</td>
                     <td class="value" style="border: none;">{{ number_format($invoice->paid, 2) }}</td>
                 </tr>
+                @endif
+                @if($invoice->balance > 0)
+                <tr>
+                    <td style="border: none; color: #b91c1c; font-weight: bold;">THIS BILL UDHAR</td>
+                    <td class="value" style="border: none; color: #b91c1c; font-weight: bold;">{{ number_format($invoice->balance, 2) }}</td>
+                </tr>
+                @endif
+                @if(($company?->show_previous_balance ?? true) && $invoice->customer)
+                @php
+                    $prevUdhar = max(0, floatval($invoice->customer->balance) - floatval($invoice->balance));
+                @endphp
+                @if($prevUdhar > 0)
+                <tr>
+                    <td style="border: none; font-size: 11px; color: #475569;">PREVIOUS UDHAR</td>
+                    <td class="value" style="border: none; font-size: 11px; color: #475569;">{{ number_format($prevUdhar, 2) }}</td>
+                </tr>
+                <tr>
+                    <td style="border: none; font-size: 11px; font-weight: bold; color: #b91c1c;">TOTAL NET BALANCE</td>
+                    <td class="value" style="border: none; font-size: 11px; font-weight: bold; color: #b91c1c;">{{ number_format($invoice->customer->balance, 2) }}</td>
+                </tr>
+                @endif
+                @endif
             </table>
         </td>
     </tr>
 </table>
+
+@if($company?->terms)
+<div style="font-size: 10px; margin-top: 15px; border-top: 1px dotted #ccc; padding-top: 6px; color: #475569;">
+    <strong>TERMS & CONDITIONS:</strong> {!! nl2br(e($company->terms)) !!}
+</div>
+@endif
+
+@if($company?->show_signatures ?? true)
+<table width="100%" style="margin-top: 35px; border: none; text-align: center; font-size: 10px; font-weight: bold;">
+    <tr>
+        <td width="28%" style="border-top: 1px dashed #000; padding-top: 5px;">CUSTOMER SIGNATURE</td>
+        <td width="8%"></td>
+        <td width="28%" style="border-top: 1px dashed #000; padding-top: 5px;">DELIVERY BOY SIGN</td>
+        <td width="8%"></td>
+        <td width="28%" style="border-top: 1px dashed #000; padding-top: 5px;">AUTHORIZED SIGNATURE</td>
+    </tr>
+</table>
+@endif
+
+@if($company?->footer_text)
+<div style="text-align: center; font-size: 11px; margin-top: 15px; font-weight: bold; color: #1e3a8a;">
+    {{ $company->footer_text }}
+</div>
+@endif
+
+<div style="text-align: center; font-size: 9px; color: #64748b; margin-top: 25px; padding-top: 6px; border-top: 1px dotted #ccc;">
+    Software Create by StackNova-Tech: +923-373375526
+</div>
 
 </body>
 </html>

@@ -120,5 +120,9 @@
             @endforeach
         </tbody>
     </table>
+
+    <div style="text-align: center; font-size: 9px; color: #64748b; margin-top: 25px; padding-top: 6px; border-top: 1px dotted #ccc;">
+        Software Create by StackNova-Tech: +923-373375526
+    </div>
 </body>
 </html>

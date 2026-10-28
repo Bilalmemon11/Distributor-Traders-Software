@@ -15,6 +15,12 @@ import PurchaseReturnReport from "../components/reports/PurchaseReturnReport";
 import InventoryReport from "../components/reports/InventoryReport";
 import OutstandingReceivableReport from "../components/reports/OutstandingReceivableReport";
 import OutstandingPayableReport from "../components/reports/OutstandingPayableReport";
+import AreaSalesReport from "../components/reports/AreaSalesReport";
+import AreaRecoveryReport from "../components/reports/AreaRecoveryReport";
+import SalesmenReport from "../components/reports/SalesmenReport";
+import SupplyMenReport from "../components/reports/SupplyMenReport";
+import FastMovingDeadStockReport from "../components/reports/FastMovingDeadStockReport";
+import ExpiryAlertsReport from "../components/reports/ExpiryAlertsReport";
 
 export default function Reports() {
   const [reportType, setReportType] = useState("sales");
@@ -33,6 +39,24 @@ export default function Reports() {
     switch (reportType) {
       case "sales":
         return <SalesReport filters={filters} />;
+
+      case "velocity":
+        return <FastMovingDeadStockReport filters={filters} />;
+
+      case "expiry-alerts":
+        return <ExpiryAlertsReport filters={filters} />;
+
+      case "area-sales":
+        return <AreaSalesReport filters={filters} />;
+
+      case "area-recovery":
+        return <AreaRecoveryReport filters={filters} />;
+
+      case "salesmen":
+        return <SalesmenReport filters={filters} />;
+
+      case "supply-men":
+        return <SupplyMenReport filters={filters} />;
 
       case "purchase":
         return <PurchaseReport filters={filters} />;

@@ -65,10 +65,19 @@
 <body>
 
 <div class="header text-center">
-    <div class="company-name">QADRI DISTRIBUTOR</div>
-    <div>FMCG | Cosmetics | General</div>
-    <div>Cell: 0319-4083445 / 0316-3128491</div>
-    <div>Qasimabad Hyderabad</div>
+    <div class="company-name">{{ $company?->company_name ?? 'QADRI DISTRIBUTOR' }}</div>
+    @if($company?->phone)
+        <div>Cell: {{ $company->phone }}</div>
+    @endif
+    @if($company?->address)
+        <div>{{ $company->address }}</div>
+    @endif
+    @if($company?->city)
+        <div>{{ $company->city }}</div>
+    @endif
+    @if($company?->ntn)
+        <div>NTN: {{ $company->ntn }}</div>
+    @endif
 </div>
 
 <div style="margin-bottom: 10px;">
@@ -85,6 +94,18 @@
             <td class="font-bold">Shop:</td>
             <td class="text-right">{{ $invoice->customer->name }}</td>
         </tr>
+        @if(($company?->show_customer_area ?? true) && $invoice->customer?->area)
+        <tr>
+            <td class="font-bold">Area:</td>
+            <td class="text-right">{{ $invoice->customer->area->name }}</td>
+        </tr>
+        @endif
+        @if($invoice->deliveryMan)
+        <tr>
+            <td class="font-bold">Rider:</td>
+            <td class="text-right">{{ $invoice->deliveryMan->name }}</td>
+        </tr>
+        @endif
     </table>
 </div>
 
@@ -123,18 +144,59 @@
         <td class="font-bold">Total</td>
         <td class="text-right font-bold">{{ number_format($invoice->total, 2) }}</td>
     </tr>
+    @if($invoice->payment_type === 'split')
+    <tr>
+        <td>- Cash</td>
+        <td class="text-right">{{ number_format($invoice->cash_paid ?? 0, 2) }}</td>
+    </tr>
+    <tr>
+        <td>- Online ({{ strtoupper($invoice->online_method ?? 'ONLINE') }})</td>
+        <td class="text-right">{{ number_format($invoice->online_paid ?? 0, 2) }}</td>
+    </tr>
+    @endif
     <tr>
         <td>Paid</td>
         <td class="text-right">{{ number_format($invoice->paid, 2) }}</td>
     </tr>
     <tr>
-        <td class="font-bold">Balance</td>
+        <td class="font-bold">This Bill Udhar</td>
         <td class="text-right font-bold">{{ number_format($invoice->balance, 2) }}</td>
     </tr>
+    @if(($company?->show_previous_balance ?? true) && $invoice->customer)
+    @php
+        $prevUdhar = max(0, floatval($invoice->customer->balance) - floatval($invoice->balance));
+    @endphp
+    @if($prevUdhar > 0)
+    <tr>
+        <td style="font-size: 10px;">Prev Udhar</td>
+        <td class="text-right" style="font-size: 10px;">{{ number_format($prevUdhar, 2) }}</td>
+    </tr>
+    <tr class="totals-divider">
+        <td class="font-bold">Total Udhar</td>
+        <td class="text-right font-bold">{{ number_format($invoice->customer->balance, 2) }}</td>
+    </tr>
+    @endif
+    @endif
 </table>
 
+@if($company?->terms)
+<div style="font-size: 9px; margin-top: 8px; border-top: 1px dotted #000; padding-top: 4px; text-align: center;">
+    {!! nl2br(e($company->terms)) !!}
+</div>
+@endif
+
+@if($company?->show_signatures ?? true)
+<div style="margin-top: 20px; border-top: 1px dashed #000; padding-top: 3px; font-size: 9px; text-align: center;">
+    Customer Sign: _____________________
+</div>
+@endif
+
 <div class="footer">
-    Thank you for choosing<br>Qadri Distributor & Traders
+    {{ $company?->footer_text ?: 'Thank you for choosing ' . ($company?->company_name ?? 'Qadri Distributor & Traders') }}
+</div>
+
+<div style="text-align: center; font-size: 8px; color: #555; margin-top: 8px; border-top: 1px dotted #888; padding-top: 4px;">
+    Software Create by StackNova-Tech: +923-373375526
 </div>
 
 </body>

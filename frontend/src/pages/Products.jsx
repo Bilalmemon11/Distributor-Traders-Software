@@ -90,7 +90,9 @@ function ProductForm({ initial, onSubmit, onCancel }) {
         id: v.id,
         variant_name: v.variant_name,
         sku: v.sku,
-
+        batch_no: v.batch_no || null,
+        expiry_date: v.expiry_date || null,
+        mfg_date: v.mfg_date || null,
         cost_price: Number(v.cost_price),
         price: Number(v.price),
         stock_qty: Number(v.stock_qty),
@@ -317,6 +319,43 @@ function ProductForm({ initial, onSubmit, onCancel }) {
                       updateVariant(index, "reorder_level", e.target.value)
                     }
                   />
+
+                  <div className="col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#f8fafc] p-2.5 rounded-lg border border-[#e2e8f0]">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748b] mb-1">
+                        Batch # (Optional)
+                      </label>
+                      <input
+                        className={inputCls}
+                        placeholder="e.g. B-2026A"
+                        value={v.batch_no || ""}
+                        onChange={(e) => updateVariant(index, "batch_no", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748b] mb-1">
+                        Mfg Date
+                      </label>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={v.mfg_date || ""}
+                        onChange={(e) => updateVariant(index, "mfg_date", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-red-600 mb-1">
+                        Expiry Date
+                      </label>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={v.expiry_date || ""}
+                        onChange={(e) => updateVariant(index, "expiry_date", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   <div className="col-span-2 flex justify-between mt-2">
                     <span className="text-green-400 text-sm">
                       Margin :

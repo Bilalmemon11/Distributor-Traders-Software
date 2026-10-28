@@ -380,24 +380,24 @@ export default function VendorReport({ filters }) {
 
           <tfoot>
 
-            <tr className="bg-[#1b2233] font-bold">
+            <tr className="bg-[#1b2233] font-bold text-white">
 
               <td
                 colSpan={3}
-                className="px-4 py-4"
+                className="px-4 py-4 text-white"
               >
                 Totals
               </td>
 
-              <td className="px-4 py-4 text-green-400">
+              <td className="px-4 py-4 text-white">
                 {fmt(totalPurchase)}
               </td>
 
-              <td className="px-4 py-4 text-red-400">
+              <td className="px-4 py-4 text-white">
                 {fmt(totalPayable)}
               </td>
 
-              <td className="px-4 py-4 text-cyan-400">
+              <td className="px-4 py-4 text-white">
                 {totalVendors}
               </td>
 
@@ -457,7 +457,7 @@ export default function VendorReport({ filters }) {
           <button
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
-            className="px-4 py-2 rounded-lg bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1e293b] font-medium border border-[#cbd5e1] disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="px-4 py-2 rounded-lg bg-[#2a3248] hover:bg-[#3b4564] text-white font-medium border border-[#3b4564] disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             ◀ Prev
           </button>
@@ -468,7 +468,7 @@ export default function VendorReport({ filters }) {
               totalPages === 0
             }
             onClick={() => setCurrentPage((p) => p + 1)}
-            className="px-4 py-2 rounded-lg bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1e293b] font-medium border border-[#cbd5e1] disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="px-4 py-2 rounded-lg bg-[#2a3248] hover:bg-[#3b4564] text-white font-medium border border-[#3b4564] disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             Next ▶
           </button>

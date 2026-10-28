@@ -10,4 +10,6 @@ frontend/dist/
 .idea/
 *.pdf
 *.rar
+*.zip
+backend/app/backup/
 composer.phar

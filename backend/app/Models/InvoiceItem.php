@@ -23,7 +23,11 @@ protected $fillable = [
 
 'returned_qty',
 
-'remaining_qty'
+'remaining_qty',
+
+'batch_no',
+
+'expiry_date'
 
 ];
 

@@ -14,6 +14,8 @@ class PurchaseItem extends Model
         'qty',
         'unit_cost',
         'total',
+        'batch_no',
+        'expiry_date',
     ];
 
     protected function casts(): array
