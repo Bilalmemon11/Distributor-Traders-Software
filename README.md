@@ -81,13 +81,16 @@ cd backend
 # Install PHP dependencies
 composer install
 
+# Database migration & seeders (includes default admin & cashier accounts)
+php artisan migrate:fresh
+php artisan optimize:clear
+php artisan cache:clear
+php artisan db:seed --class=UserSeeder
+
 # Environment configuration
 cp .env.example .env
 php artisan key:generate
 
-# Database migration & seeders (includes default admin & cashier accounts)
-php artisan migrate
-php artisan db:seed --class=UserSeeder
 
 # Start backend server
 php artisan serve --port=8005
