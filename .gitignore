@@ -11,5 +11,6 @@ frontend/dist/
 *.pdf
 *.rar
 *.zip
+*WhatsApp*
 backend/app/backup/
 composer.phar
